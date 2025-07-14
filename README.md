@@ -1,20 +1,35 @@
 #  GhostDesk
 
 讓桌面消失，只留下你跟你的專注。  
-GhostDesk 是一款超低資源、可隱藏 Windows 桌面與工作列的極簡工具，  
-按下熱鍵，一鍵清空視覺干擾，還你一片清靜 ✨
+GhostDesk 是一款類似 Wallpaper Engine 的模組化桌面管理工具，  
+開機自動隱藏桌面，提供小型控制面板，還你一片清靜 ✨
 
 ---
 
 ## 主要特色
 
-- 🔹 隱藏桌面圖示 & 任務列（Taskbar）
-- 🔹 按下熱鍵即可還原或再次隱藏
-- 🔹 底部滑鼠懸停時可自動彈出工具列（開發中）
-- 🔹 極致輕量，不啟用 UI，不閃視窗
-- 🔹 支援 VSCode / C++ / MinGW 開發
+- 🔹 **開機自動啟動** - 自動隱藏桌面，無需手動操作
+- 🔹 **小型控制面板** - 類似 Wallpaper Engine 的簡潔介面
+- 🔹 **模組化架構** - DLL 分離，易於維護和擴展
+- 🔹 **系統匣整合** - 背景運行，右鍵快速控制
+- 🔹 **自動註冊到 Windows** - 一鍵設定開機啟動
+- 🔹 **版本控制友好** - dist 目錄管理發布版本
 
 ---
+
+## 專案架構
+
+```
+GhostDesk/
+├── src/
+│   ├── core/           # 核心功能 DLL
+│   ├── ui/             # 介面模組 DLL  
+│   ├── service/        # 服務模組 DLL
+│   └── GhostDesk.cpp   # 主程式
+├── include/            # API 頭文件
+├── dist/               # 發布版本
+└── build_modular.bat   # 編譯腳本
+```
 
 ## 使用方式
 
@@ -23,26 +38,39 @@ GhostDesk 是一款超低資源、可隱藏 Windows 桌面與工作列的極簡�
 請使用支援 Win32 API 的 C++ 編譯器（如 MinGW）
 
 ```bash
-g++ main.cpp -o ghostdesk.exe -mwindows
+# 模組化編譯（推薦）
+build_modular.bat
+
+# 手動編譯核心 DLL
+g++ -shared src\core\*.cpp src\ui\*.cpp src\service\*.cpp -o dist\ghostdesk_core.dll -lshell32
+
+# 手動編譯主程式
+g++ src\GhostDesk.cpp -o dist\GhostDesk.exe -mwindows -L.\dist -lghostdesk_core -lshell32
 ```
 
 ### 執行
 
 ```bash
-./ghostdesk.exe
+# 從 dist 目錄執行
+dist\GhostDesk.exe
 ```
 
-程式會靜默運行於背景，不會開啟視窗。  
-熱鍵已註冊為：`Ctrl + Shift + D` Toggle 顯示 / 隱藏
+程式會：
+- 自動隱藏桌面（首次啟動）
+- 在系統匣顯示圖示
+- 控制面板預設隱藏，雙擊系統匣圖示顯示
 
 ---
 
-## 快捷鍵操作
+## 操作方式
 
-| 快捷鍵 | 功能 |
-|--------|------|
+| 操作方式 | 功能 |
+|----------|------|
 | `Ctrl + Shift + D` | 顯示/隱藏 桌面圖示 與 Taskbar |
-| `Mouse to bottom edge` | 自動彈出 Taskbar（開發中） |
+| `Ctrl + Shift + Q` | 退出程式 |
+| `滑鼠移至螢幕底部` | 自動彈出 Taskbar |
+| `雙擊系統匣圖示` | 顯示/隱藏控制視窗 |
+| `右鍵系統匣圖示` | 開啟快速選單 |
 
 ---
 
@@ -51,20 +79,22 @@ g++ main.cpp -o ghostdesk.exe -mwindows
 | 工具 | 說明 |
 |------|------|
 | OS | Windows 10/11 |
-| 編譯器 | MinGW-w64 or MSYS2 (推薦) |
-| 編輯器 | VSCode |
-| 語言 | C++17 / C++20 |
-| 技術 | 原生 Win32 API（無 GUI 框架） |
+| 編譯器 | MinGW-w64 (推薦) |
+| 架構 | 模組化 DLL + 主程式 |
+| 語言 | C++17 |
+| 技術 | Win32 API + DLL 分離 |
 
 ---
 
 ## 開發中 / Todo
 
-- [ ] 滑鼠靠近底部自動顯示工作列
-- [ ] System Tray Icon 控制開關
-- [ ] 開機自動啟動（Windows Registry）
+- [x] 滑鼠靠近底部自動顯示工作列
+- [x] System Tray Icon 控制開關
+- [x] 開機自動啟動（Windows Registry）
+- [x] 模組化 DLL 架構
 - [ ] 自定快捷鍵 + 設定介面
 - [ ] Fade In/Out 動畫效果（用 `AnimateWindow()`）
+- [ ] 多語言支援（英文/中文切換）
 
 ---
 
@@ -76,4 +106,4 @@ g++ main.cpp -o ghostdesk.exe -mwindows
 
 ---
 
-> “有時候，你不是想關掉世界。你只是想把桌面藏起來而已。” — GhostDesk
+> "有時候，你不是想關掉世界。你只是想把桌面藏起來而已。" — GhostDesk
