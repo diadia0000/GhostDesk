@@ -71,7 +71,7 @@ g++ main.cpp -o ghostdesk.exe -mwindows
 ## Side Project, Vibe On!
 
 這不是一個要寫成巨獸的專案，  
-而是一個讓我學習 C++ 與 Win32 API 的 Playground。  
+而是一個讓我~~學習 C++ 與 Win32 API~~ 自嗨用的 Playground。  
 寫一點，學一點，優雅地把想法做出來
 
 ---
