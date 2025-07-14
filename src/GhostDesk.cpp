@@ -9,28 +9,47 @@
 #define TIMER_ID 1
 
 static HWND mainWindow;
-static int screenHeight = 0;
+static bool mouseAtBottom = false;
 
-void CheckMousePosition() {
-    if (!IsDesktopHidden()) return;
-    
+bool IsMouseAtAnyScreenBottom() {
     POINT cursor;
     GetCursorPos(&cursor);
     
-    // Simple bottom edge check without expensive monitor calls
-    if (cursor.y >= screenHeight - 5) {
-        // Temporarily show taskbar logic here if needed
+    HMONITOR hMonitor = MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST);
+    MONITORINFO mi = { sizeof(MONITORINFO) };
+    
+    if (GetMonitorInfo(hMonitor, &mi)) {
+        return (cursor.y >= mi.rcMonitor.bottom - 10);
+    }
+    
+    return (cursor.y >= GetSystemMetrics(SM_CYSCREEN) - 10);
+}
+
+void CheckMousePosition() {
+    if (!IsDesktopHidden()) {
+        mouseAtBottom = false;
+        return;
+    }
+    
+    bool currentlyAtBottom = IsMouseAtAnyScreenBottom();
+    
+    if (currentlyAtBottom && !mouseAtBottom) {
+        ShowTaskbarAnimated();
+        mouseAtBottom = true;
+    } else if (!currentlyAtBottom && mouseAtBottom) {
+        HideTaskbarAnimated();
+        mouseAtBottom = false;
     }
 }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
         case WM_CREATE:
-            CreateWindowA("BUTTON", "隱藏/顯示桌面", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+            CreateWindowA("BUTTON", "Toggle Desktop", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
                         10, 10, 120, 30, hwnd, (HMENU)ID_TOGGLE, NULL, NULL);
-            CreateWindowA("BUTTON", "開機自動啟動", WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
+            CreateWindowA("BUTTON", "Auto Start", WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
                         10, 50, 120, 20, hwnd, (HMENU)ID_AUTOSTART, NULL, NULL);
-            CreateWindowA("BUTTON", "退出", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+            CreateWindowA("BUTTON", "Exit", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
                         10, 80, 60, 25, hwnd, (HMENU)ID_EXIT, NULL, NULL);
             
             CheckDlgButton(hwnd, ID_AUTOSTART, IsAutoStartEnabled() ? BST_CHECKED : BST_UNCHECKED);
@@ -55,6 +74,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             if (wParam == 1) ToggleDesktop();
             else if (wParam == 2) {
                 RestoreDesktop();
+                RemoveSystemTray();
+                UnregisterGlobalHotkeys(hwnd);
                 PostQuitMessage(0);
             }
             break;
@@ -68,9 +89,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 ShowWindow(hwnd, IsWindowVisible(hwnd) ? SW_HIDE : SW_SHOW);
             } else if (lParam == WM_RBUTTONUP) {
                 HMENU hMenu = CreatePopupMenu();
-                AppendMenu(hMenu, MF_STRING, ID_TOGGLE, IsDesktopHidden() ? "顯示桌面" : "隱藏桌面");
-                AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
-                AppendMenu(hMenu, MF_STRING, ID_EXIT, "退出");
+                AppendMenuA(hMenu, MF_STRING, ID_TOGGLE, IsDesktopHidden() ? "Show" : "Hide");
+                AppendMenuA(hMenu, MF_SEPARATOR, 0, NULL);
+                AppendMenuA(hMenu, MF_STRING, ID_EXIT, "Exit");
                 
                 POINT pt;
                 GetCursorPos(&pt);
@@ -88,6 +109,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             break;
             
         case WM_DESTROY:
+            RestoreDesktop();
             RemoveSystemTray();
             UnregisterGlobalHotkeys(hwnd);
             PostQuitMessage(0);
@@ -98,7 +120,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     if (!InitDesktopControl()) {
-        MessageBoxA(NULL, "初始化失敗", "錯誤", MB_OK | MB_ICONERROR);
+        MessageBoxA(NULL, "Init failed", "Error", MB_OK | MB_ICONERROR);
         return 1;
     }
     
@@ -115,8 +137,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
                             CW_USEDEFAULT, CW_USEDEFAULT, 160, 140,
                             NULL, NULL, hInstance, NULL);
     
-    // Get screen height once
-    screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    // Multi-monitor support ready
     
     RegisterGlobalHotkeys(mainWindow);
     CreateSystemTray(mainWindow);
