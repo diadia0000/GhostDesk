@@ -1,37 +1,32 @@
 #define GHOSTDESK_EXPORTS
 #include "../../include/ghostdesk_api.h"
-#include <vector>
 
 static bool isHidden = false;
 static HWND desktopIcons = NULL;
-static std::vector<HWND> taskbars;
+static HWND taskbar = NULL;
+static HWND secondaryTaskbar = NULL;
 
 BOOL InitDesktopControl() {
-    taskbars.clear();
-    taskbars.push_back(FindWindowA("Shell_TrayWnd", NULL));
-    
-    HWND secondary = NULL;
-    while ((secondary = FindWindowExA(NULL, secondary, "Shell_SecondaryTrayWnd", NULL)) != NULL) {
-        taskbars.push_back(secondary);
-    }
+    taskbar = FindWindowA("Shell_TrayWnd", NULL);
+    secondaryTaskbar = FindWindowExA(NULL, NULL, "Shell_SecondaryTrayWnd", NULL);
     
     HWND progman = FindWindowA("Progman", NULL);
-    desktopIcons = FindWindowExA(progman, NULL, "SHELLDLL_DefView", NULL);
-    desktopIcons = FindWindowExA(desktopIcons, NULL, "SysListView32", NULL);
+    if (progman) {
+        desktopIcons = FindWindowExA(progman, NULL, "SHELLDLL_DefView", NULL);
+        if (desktopIcons) {
+            desktopIcons = FindWindowExA(desktopIcons, NULL, "SysListView32", NULL);
+        }
+    }
     
-    return (desktopIcons != NULL && !taskbars.empty());
+    return (desktopIcons && taskbar);
 }
 
 void ToggleDesktop() {
-    if (!isHidden) {
-        for (HWND tb : taskbars) ShowWindow(tb, SW_HIDE);
-        ShowWindow(desktopIcons, SW_HIDE);
-        isHidden = true;
-    } else {
-        for (HWND tb : taskbars) ShowWindow(tb, SW_SHOW);
-        ShowWindow(desktopIcons, SW_SHOW);
-        isHidden = false;
-    }
+    int cmd = isHidden ? SW_SHOW : SW_HIDE;
+    ShowWindow(taskbar, cmd);
+    if (secondaryTaskbar) ShowWindow(secondaryTaskbar, cmd);
+    ShowWindow(desktopIcons, cmd);
+    isHidden = !isHidden;
 }
 
 BOOL IsDesktopHidden() {
@@ -40,7 +35,8 @@ BOOL IsDesktopHidden() {
 
 void RestoreDesktop() {
     if (isHidden) {
-        for (HWND tb : taskbars) ShowWindow(tb, SW_SHOW);
+        ShowWindow(taskbar, SW_SHOW);
+        if (secondaryTaskbar) ShowWindow(secondaryTaskbar, SW_SHOW);
         ShowWindow(desktopIcons, SW_SHOW);
         isHidden = false;
     }

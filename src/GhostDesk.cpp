@@ -8,8 +8,8 @@
 #define WM_TRAYICON (WM_USER + 1)
 #define TIMER_ID 1
 
-HWND mainWindow;
-bool autoHideEnabled = true;
+static HWND mainWindow;
+static int screenHeight = 0;
 
 void CheckMousePosition() {
     if (!IsDesktopHidden()) return;
@@ -17,16 +17,9 @@ void CheckMousePosition() {
     POINT cursor;
     GetCursorPos(&cursor);
     
-    HMONITOR monitor = MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST);
-    MONITORINFO mi = {sizeof(mi)};
-    GetMonitorInfo(monitor, &mi);
-    
-    static bool taskbarShown = false;
-    if (cursor.y >= mi.rcMonitor.bottom - 5 && !taskbarShown) {
-        // Show taskbar temporarily
-        taskbarShown = true;
-    } else if (cursor.y < mi.rcMonitor.bottom - 50 && taskbarShown) {
-        taskbarShown = false;
+    // Simple bottom edge check without expensive monitor calls
+    if (cursor.y >= screenHeight - 5) {
+        // Temporarily show taskbar logic here if needed
     }
 }
 
@@ -67,7 +60,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             break;
             
         case WM_TIMER:
-            if (wParam == TIMER_ID && autoHideEnabled) CheckMousePosition();
+            if (wParam == TIMER_ID) CheckMousePosition();
             break;
             
         case WM_TRAYICON:
@@ -122,9 +115,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
                             CW_USEDEFAULT, CW_USEDEFAULT, 160, 140,
                             NULL, NULL, hInstance, NULL);
     
+    // Get screen height once
+    screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    
     RegisterGlobalHotkeys(mainWindow);
     CreateSystemTray(mainWindow);
-    SetTimer(mainWindow, TIMER_ID, 100, NULL);
+    SetTimer(mainWindow, TIMER_ID, 250, NULL); // Reduced frequency
     
     // Auto-hide desktop on startup
     ToggleDesktop();
