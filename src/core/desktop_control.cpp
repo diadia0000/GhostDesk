@@ -5,8 +5,8 @@ static bool isHidden = false;
 static bool taskbarTempVisible = false;
 static HWND desktopIcons = NULL;
 static HWND taskbar = NULL;
-static HWND taskbars[10] = {0};
-static int taskbarCount = 0;
+HWND taskbars[10] = {0};
+int taskbarCount = 0;
 
 BOOL InitDesktopControl() {
     taskbar = FindWindowA("Shell_TrayWnd", NULL);
@@ -58,7 +58,13 @@ void ShowTaskbarAnimated() {
     if (isHidden && !taskbarTempVisible) {
         for (int i = 0; i < taskbarCount; i++) {
             ShowWindow(taskbars[i], SW_SHOW);
-            AnimateWindow(taskbars[i], 200, AW_SLIDE | AW_VER_NEGATIVE);
+            SetLayeredWindowAttributes(taskbars[i], 0, 0, LWA_ALPHA);
+            SetWindowLongA(taskbars[i], GWL_EXSTYLE, GetWindowLongA(taskbars[i], GWL_EXSTYLE) | WS_EX_LAYERED);
+            
+            for (int alpha = 0; alpha <= 255; alpha += 15) {
+                SetLayeredWindowAttributes(taskbars[i], 0, alpha, LWA_ALPHA);
+                Sleep(10);
+            }
         }
         taskbarTempVisible = true;
     }
@@ -67,7 +73,12 @@ void ShowTaskbarAnimated() {
 void HideTaskbarAnimated() {
     if (isHidden && taskbarTempVisible) {
         for (int i = 0; i < taskbarCount; i++) {
-            AnimateWindow(taskbars[i], 200, AW_SLIDE | AW_VER_POSITIVE | AW_HIDE);
+            for (int alpha = 255; alpha >= 0; alpha -= 15) {
+                SetLayeredWindowAttributes(taskbars[i], 0, alpha, LWA_ALPHA);
+                Sleep(10);
+            }
+            ShowWindow(taskbars[i], SW_HIDE);
+            SetWindowLongA(taskbars[i], GWL_EXSTYLE, GetWindowLongA(taskbars[i], GWL_EXSTYLE) & ~WS_EX_LAYERED);
         }
         taskbarTempVisible = false;
     }

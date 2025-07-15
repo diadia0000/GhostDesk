@@ -1,28 +1,47 @@
 #include "../include/ghostdesk_api.h"
 #include <shellapi.h>
 
+extern HWND taskbars[10];
+extern int taskbarCount;
+
 #define ID_TOGGLE 1001
 #define ID_EXIT 1002
 #define ID_AUTOSTART 1003
 #define ID_SETTINGS 1004
+#define ID_SHOW_UI 1005
 #define WM_TRAYICON (WM_USER + 1)
 #define TIMER_ID 1
 
 static HWND mainWindow;
 static bool mouseAtBottom = false;
 
-bool IsMouseAtAnyScreenBottom() {
+bool HasTaskbarPopup() {
+    HWND notifyOverflow = FindWindowA("NotifyIconOverflowWindow", NULL);
+    if (notifyOverflow && IsWindowVisible(notifyOverflow)) return true;
+    
+    return false;
+}
+
+bool IsMouseOverTaskbar() {
     POINT cursor;
     GetCursorPos(&cursor);
     
-    HMONITOR hMonitor = MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST);
-    MONITORINFO mi = { sizeof(MONITORINFO) };
-    
-    if (GetMonitorInfo(hMonitor, &mi)) {
-        return (cursor.y >= mi.rcMonitor.bottom - 10);
+    for (int i = 0; i < taskbarCount; i++) {
+        RECT taskbarRect;
+        if (GetWindowRect(taskbars[i], &taskbarRect)) {
+            if (PtInRect(&taskbarRect, cursor)) {
+                return true;
+            }
+        }
     }
     
-    return (cursor.y >= GetSystemMetrics(SM_CYSCREEN) - 10);
+    HMONITOR hMonitor = MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST);
+    MONITORINFO mi = { sizeof(MONITORINFO) };
+    if (GetMonitorInfo(hMonitor, &mi)) {
+        return (cursor.y >= mi.rcMonitor.bottom - 5);
+    }
+    
+    return (cursor.y >= GetSystemMetrics(SM_CYSCREEN) - 5);
 }
 
 void CheckMousePosition() {
@@ -31,12 +50,13 @@ void CheckMousePosition() {
         return;
     }
     
-    bool currentlyAtBottom = IsMouseAtAnyScreenBottom();
+    bool currentlyOverTaskbar = IsMouseOverTaskbar();
+    bool hasPopup = HasTaskbarPopup();
     
-    if (currentlyAtBottom && !mouseAtBottom) {
+    if (currentlyOverTaskbar && !mouseAtBottom) {
         ShowTaskbarAnimated();
         mouseAtBottom = true;
-    } else if (!currentlyAtBottom && mouseAtBottom) {
+    } else if (!currentlyOverTaskbar && mouseAtBottom && !hasPopup) {
         HideTaskbarAnimated();
         mouseAtBottom = false;
     }
@@ -63,6 +83,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 case ID_AUTOSTART:
                     SetAutoStart(IsDlgButtonChecked(hwnd, ID_AUTOSTART) == BST_CHECKED);
                     break;
+                case ID_SHOW_UI:
+                    ShowWindow(hwnd, SW_SHOW);
+                    SetForegroundWindow(hwnd);
+                    break;
                 case ID_EXIT:
                     RestoreDesktop();
                     PostQuitMessage(0);
@@ -78,6 +102,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 UnregisterGlobalHotkeys(hwnd);
                 PostQuitMessage(0);
             }
+            else if (wParam == 3) {
+                ShowWindow(hwnd, SW_SHOW);
+                SetForegroundWindow(hwnd);
+            }
             break;
             
         case WM_TIMER:
@@ -89,9 +117,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 ShowWindow(hwnd, IsWindowVisible(hwnd) ? SW_HIDE : SW_SHOW);
             } else if (lParam == WM_RBUTTONUP) {
                 HMENU hMenu = CreatePopupMenu();
-                AppendMenuA(hMenu, MF_STRING, ID_TOGGLE, IsDesktopHidden() ? "Show" : "Hide");
+                AppendMenuA(hMenu, MF_STRING, ID_TOGGLE, IsDesktopHidden() ? "Show(Ctrl+Shift+D)" : "Hide(Ctrl+Shift+D)");
+                AppendMenuA(hMenu, MF_STRING, ID_SHOW_UI, "Show UI(Crtl+Shift+U)");
                 AppendMenuA(hMenu, MF_SEPARATOR, 0, NULL);
-                AppendMenuA(hMenu, MF_STRING, ID_EXIT, "Exit");
+                AppendMenuA(hMenu, MF_STRING, ID_EXIT, "Exit(Crtl+Shift+Q)");
                 
                 POINT pt;
                 GetCursorPos(&pt);
@@ -134,7 +163,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     
     mainWindow = CreateWindowA("GhostDeskApp", "GhostDesk Control Panel", 
                             WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
-                            CW_USEDEFAULT, CW_USEDEFAULT, 160, 140,
+                            CW_USEDEFAULT, CW_USEDEFAULT, 640, 360,
                             NULL, NULL, hInstance, NULL);
     
     // Multi-monitor support ready
@@ -146,7 +175,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     // Auto-hide desktop on startup
     ToggleDesktop();
     
-    ShowWindow(mainWindow, SW_HIDE); // Start minimized to tray
+    ShowWindow(mainWindow, SW_SHOW); // Show window for debugging
     
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) {

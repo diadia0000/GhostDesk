@@ -27,4 +27,8 @@ extern "C" {
     // Auto-start
     GHOSTDESK_API BOOL SetAutoStart(BOOL enable);
     GHOSTDESK_API BOOL IsAutoStartEnabled();
+    
+    // Taskbar access
+    GHOSTDESK_API extern HWND taskbars[10];
+    GHOSTDESK_API extern int taskbarCount;
 }

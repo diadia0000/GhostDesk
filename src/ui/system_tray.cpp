@@ -11,7 +11,7 @@ BOOL CreateSystemTray(HWND hwnd) {
     nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid.uCallbackMessage = WM_USER + 1;
     nid.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-    strcpy_s(nid.szTip, "GhostDesk - Ctrl+Shift+D");
+    strcpy(nid.szTip, "GhostDesk - U:UI D:Desktop Q:Exit");
     return Shell_NotifyIconA(NIM_ADD, &nid);
 }
 
