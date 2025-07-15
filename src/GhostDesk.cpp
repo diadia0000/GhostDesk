@@ -23,6 +23,17 @@ int GetMouseMonitorIndex() {
     POINT cursor;
     GetCursorPos(&cursor);
     
+    // 檢查滑鼠是否在任何工作列內部
+    for (int i = 0; i < taskbarCount; i++) {
+        RECT taskbarRect;
+        if (GetWindowRect(taskbars[i], &taskbarRect)) {
+            if (PtInRect(&taskbarRect, cursor)) {
+                return i;
+            }
+        }
+    }
+    
+    // 如果不在工作列內部，檢查是否在螢幕底部觸發區域
     HMONITOR hMonitor = MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST);
     
     for (int i = 0; i < taskbarCount; i++) {
