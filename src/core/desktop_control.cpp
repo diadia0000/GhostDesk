@@ -49,8 +49,12 @@ void RestoreDesktop() {
     if (isHidden) {
         for (int i = 0; i < taskbarCount; i++) {
             ShowWindow(taskbars[i], SW_SHOW);
+<<<<<<< HEAD
             taskbarVisible[i] = false;
             animating[i] = false;
+=======
+            SetWindowLongA(taskbars[i], GWL_EXSTYLE, GetWindowLongA(taskbars[i], GWL_EXSTYLE) & ~WS_EX_LAYERED);
+>>>>>>> 8074f5b8583f56a69bf103e3e4fa208093f35da8
         }
         ShowWindow(desktopIcons, SW_SHOW);
         isHidden = false;

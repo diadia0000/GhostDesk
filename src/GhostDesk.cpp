@@ -85,6 +85,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     break;
                 case ID_EXIT:
                     RestoreDesktop();
+                    RemoveSystemTray();
+                    UnregisterGlobalHotkeys(hwnd);
                     PostQuitMessage(0);
                     break;
             }
