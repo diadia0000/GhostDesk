@@ -18,8 +18,11 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
+echo Compiling resources...
+windres "%~dp0resources\app.rc" -o "%~dp0resources\app.o"
+
 echo Compiling main program...
-g++ -O2 -s -DNDEBUG -DWIN32_LEAN_AND_MEAN "%~dp0src\GhostDesk.cpp" -o "%~dp0dist\GhostDesk.exe" -mwindows -L"%~dp0dist" -lghostdesk_core -lshell32
+g++ -O2 -s -DNDEBUG -DWIN32_LEAN_AND_MEAN "%~dp0src\GhostDesk.cpp" "%~dp0resources\app.o" -o "%~dp0dist\GhostDesk.exe" -mwindows -L"%~dp0dist" -lghostdesk_core -lshell32
 
 if %ERRORLEVEL% EQU 0 (
     echo.

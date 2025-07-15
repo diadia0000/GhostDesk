@@ -159,6 +159,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     wc.lpszClassName = "GhostDeskApp";
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(101));
     RegisterClassA(&wc);
     
     mainWindow = CreateWindowA("GhostDeskApp", "GhostDesk Control Panel", 
