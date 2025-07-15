@@ -1,5 +1,7 @@
 #include <windows.h>
 
 #define IDI_APP_ICON 101
+#define IDB_BACKGROUND 102
 
 IDI_APP_ICON ICON "ghost_icon.ico"
+IDB_BACKGROUND BITMAP "background.bmp"

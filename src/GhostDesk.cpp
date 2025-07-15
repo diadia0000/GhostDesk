@@ -1,6 +1,11 @@
 #include "../include/ghostdesk_api.h"
 #include <shellapi.h>
 
+// 圖像加載器聲明
+HBITMAP LoadJPEGFromFile(const char* filename);
+
+#define IDB_BACKGROUND 102
+
 #define ID_TOGGLE 1001
 #define ID_EXIT 1002
 #define ID_AUTOSTART 1003
@@ -11,6 +16,8 @@
 
 static HWND mainWindow;
 static bool mouseAtBottom = false; // Global mouse state
+static HBITMAP hBackgroundBitmap = NULL; // 背景圖位圖
+static HDC hBackgroundDC = NULL; // 背景圖 DC
 
 bool HasTaskbarPopup() {
     HWND notifyOverflow = FindWindowA("NotifyIconOverflowWindow", NULL);
@@ -71,6 +78,45 @@ void CheckMousePosition() {
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hwnd, &ps);
+            
+            RECT rect;
+            GetClientRect(hwnd, &rect);
+            
+            // 先填充背景色
+            HBRUSH hBrush = CreateSolidBrush(RGB(45, 45, 48)); // 深灰色背景
+            FillRect(hdc, &rect, hBrush);
+            DeleteObject(hBrush);
+            
+            // 加載背景圖
+            HBITMAP hBitmap = (HBITMAP)LoadImage(GetModuleHandle(NULL), MAKEINTRESOURCE(IDB_BACKGROUND), 
+                                               IMAGE_BITMAP, 0, 0, LR_DEFAULTCOLOR);
+            
+            if (hBitmap) {
+                HDC memDC = CreateCompatibleDC(hdc);
+                HBITMAP oldBitmap = (HBITMAP)SelectObject(memDC, hBitmap);
+                
+                BITMAP bm;
+                GetObject(hBitmap, sizeof(bm), &bm);
+                
+                // 設定高品質縮放模式
+                SetStretchBltMode(hdc, HALFTONE);
+                SetBrushOrgEx(hdc, 0, 0, NULL);
+                
+                StretchBlt(hdc, 0, 0, rect.right, rect.bottom, 
+                          memDC, 0, 0, bm.bmWidth, bm.bmHeight, SRCCOPY);
+                
+                SelectObject(memDC, oldBitmap);
+                DeleteDC(memDC);
+                DeleteObject(hBitmap);
+            }
+            
+            EndPaint(hwnd, &ps);
+            return 0;
+        }
+        
         case WM_CREATE:
             CreateWindowA("BUTTON", "Toggle Desktop", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
                         10, 10, 120, 30, hwnd, (HMENU)ID_TOGGLE, NULL, NULL);
@@ -166,7 +212,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
     wc.lpszClassName = "GhostDeskApp";
-    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wc.hbrBackground = NULL;
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(101));
     RegisterClassA(&wc);
