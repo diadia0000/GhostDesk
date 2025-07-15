@@ -13,8 +13,10 @@ extern "C" {
     GHOSTDESK_API void ToggleDesktop();
     GHOSTDESK_API BOOL IsDesktopHidden();
     GHOSTDESK_API void RestoreDesktop();
-    GHOSTDESK_API void ShowTaskbarAnimated();
-    GHOSTDESK_API void HideTaskbarAnimated();
+    GHOSTDESK_API void ShowTaskbarAnimated(int monitorIndex);
+    GHOSTDESK_API void HideTaskbarAnimated(int monitorIndex);
+    GHOSTDESK_API void ShowAllTaskbarsAnimated();
+    GHOSTDESK_API void HideAllTaskbarsAnimated();
     
     // Hotkey Management
     GHOSTDESK_API BOOL RegisterGlobalHotkeys(HWND hwnd);

@@ -1,9 +1,6 @@
 #include "../include/ghostdesk_api.h"
 #include <shellapi.h>
 
-extern HWND taskbars[10];
-extern int taskbarCount;
-
 #define ID_TOGGLE 1001
 #define ID_EXIT 1002
 #define ID_AUTOSTART 1003
@@ -13,7 +10,7 @@ extern int taskbarCount;
 #define TIMER_ID 1
 
 static HWND mainWindow;
-static bool mouseAtBottom = false;
+static bool mouseAtBottom = false; // Global mouse state
 
 bool HasTaskbarPopup() {
     HWND notifyOverflow = FindWindowA("NotifyIconOverflowWindow", NULL);
@@ -22,26 +19,25 @@ bool HasTaskbarPopup() {
     return false;
 }
 
-bool IsMouseOverTaskbar() {
+int GetMouseMonitorIndex() {
     POINT cursor;
     GetCursorPos(&cursor);
+    
+    HMONITOR hMonitor = MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST);
     
     for (int i = 0; i < taskbarCount; i++) {
         RECT taskbarRect;
         if (GetWindowRect(taskbars[i], &taskbarRect)) {
-            if (PtInRect(&taskbarRect, cursor)) {
-                return true;
+            HMONITOR taskbarMonitor = MonitorFromRect(&taskbarRect, MONITOR_DEFAULTTONEAREST);
+            if (taskbarMonitor == hMonitor) {
+                MONITORINFO mi = { sizeof(MONITORINFO) };
+                if (GetMonitorInfo(hMonitor, &mi) && cursor.y >= mi.rcMonitor.bottom - 5) {
+                    return i;
+                }
             }
         }
     }
-    
-    HMONITOR hMonitor = MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST);
-    MONITORINFO mi = { sizeof(MONITORINFO) };
-    if (GetMonitorInfo(hMonitor, &mi)) {
-        return (cursor.y >= mi.rcMonitor.bottom - 5);
-    }
-    
-    return (cursor.y >= GetSystemMetrics(SM_CYSCREEN) - 5);
+    return -1;
 }
 
 void CheckMousePosition() {
@@ -50,14 +46,14 @@ void CheckMousePosition() {
         return;
     }
     
-    bool currentlyOverTaskbar = IsMouseOverTaskbar();
+    int currentMonitor = GetMouseMonitorIndex();
     bool hasPopup = HasTaskbarPopup();
     
-    if (currentlyOverTaskbar && !mouseAtBottom) {
-        ShowTaskbarAnimated();
+    if (currentMonitor >= 0 && !mouseAtBottom) {
+        ShowAllTaskbarsAnimated();
         mouseAtBottom = true;
-    } else if (!currentlyOverTaskbar && mouseAtBottom && !hasPopup) {
-        HideTaskbarAnimated();
+    } else if (currentMonitor < 0 && mouseAtBottom && !hasPopup) {
+        HideAllTaskbarsAnimated();
         mouseAtBottom = false;
     }
 }
