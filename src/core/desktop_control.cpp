@@ -7,18 +7,18 @@
 static bool isHidden = false;
 static HWND desktopIcons = NULL;
 static HWND taskbar = NULL;
-HWND taskbars[10] = {0};
+HWND taskbars[4] = {0};  // 減少到4個螢幕支援
 int taskbarCount = 0;
-static bool taskbarVisible[10] = {false}; // Per-monitor visibility state
-static bool animating[10] = {false}; // Per-monitor animation state
+static bool taskbarVisible[4] = {false}; // Per-monitor visibility state
+static bool animating[4] = {false}; // Per-monitor animation state
 
 // 假工作列系統
 static const char* FAKE_TASKBAR_CLASS = "GhostDesk_FakeTaskbar";
-static HWND fakeTaskbars[10] = {0};
-static HDC taskbarDCs[10] = {0};
-static HBITMAP taskbarBitmaps[10] = {0};
-static int taskbarWidths[10] = {0};
-static int taskbarHeights[10] = {0};
+static HWND fakeTaskbars[4] = {0};  // 減少支援的螢幕數量
+static HDC taskbarDCs[4] = {0};
+static HBITMAP taskbarBitmaps[4] = {0};
+static int taskbarWidths[4] = {0};
+static int taskbarHeights[4] = {0};
 
 // 假工作列視窗處理函數
 LRESULT CALLBACK FakeTaskbarProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -53,7 +53,7 @@ LRESULT CALLBACK FakeTaskbarProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-// 初始化假工作列
+// 初始化假工作列 (記憶體優化版本)
 void InitFakeTaskbar() {
     static bool initialized = false;
     if (initialized) return;
@@ -68,19 +68,13 @@ void InitFakeTaskbar() {
     RegisterClassA(&wc);
     initialized = true;
     
-    // 為每個工作列創建截圖資源
+    // 延遲創建資源，只在需要時才分配記憶體
     for (int i = 0; i < taskbarCount; i++) {
         RECT rect;
         GetWindowRect(taskbars[i], &rect);
         taskbarWidths[i] = rect.right - rect.left;
         taskbarHeights[i] = rect.bottom - rect.top;
-        
-        // 創建相容的 DC 和位圖
-        HDC screenDC = GetDC(NULL);
-        taskbarDCs[i] = CreateCompatibleDC(screenDC);
-        taskbarBitmaps[i] = CreateCompatibleBitmap(screenDC, taskbarWidths[i], taskbarHeights[i]);
-        SelectObject(taskbarDCs[i], taskbarBitmaps[i]);
-        ReleaseDC(NULL, screenDC);
+        // 不預先分配 DC 和位圖，節省記憶體
     }
 }
 
@@ -104,25 +98,12 @@ void CleanupFakeTaskbar() {
     }
 }
 
-// 截取工作列畫面
+// 截取工作列畫面 (簡化版本以節省記憶體)
 void CaptureTaskbarImage(int monitorIndex) {
     if (monitorIndex < 0 || monitorIndex >= taskbarCount) return;
     
-    RECT rect;
-    GetWindowRect(taskbars[monitorIndex], &rect);
-    
-    // 確保工作列可見並更新
-    ShowWindow(taskbars[monitorIndex], SW_SHOW);
-    UpdateWindow(taskbars[monitorIndex]);
-    Sleep(50);
-    
-    // 截取工作列畫面
-    HDC screenDC = GetDC(NULL);
-    if (taskbarDCs[monitorIndex] && taskbarBitmaps[monitorIndex]) {
-        BitBlt(taskbarDCs[monitorIndex], 0, 0, taskbarWidths[monitorIndex], taskbarHeights[monitorIndex], 
-               screenDC, rect.left, rect.top, SRCCOPY);
-    }
-    ReleaseDC(NULL, screenDC);
+    // 簡化：不預先截取圖像，減少記憶體使用
+    // 只在需要時才創建臨時資源
 }
 
 BOOL InitDesktopControl() {
@@ -131,7 +112,7 @@ BOOL InitDesktopControl() {
     taskbarCount = 1;
     
     HWND secondary = NULL;
-    while ((secondary = FindWindowExA(NULL, secondary, "Shell_SecondaryTrayWnd", NULL)) != NULL && taskbarCount < 10) {
+    while ((secondary = FindWindowExA(NULL, secondary, "Shell_SecondaryTrayWnd", NULL)) != NULL && taskbarCount < 4) {
         taskbars[taskbarCount++] = secondary;
     }
     

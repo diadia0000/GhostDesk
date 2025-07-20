@@ -51,10 +51,11 @@ void GetSystemResourceInfo(char* buffer, int bufferSize) {
     double cpuUsage = GetCPUUsage();
     SIZE_T memUsage = GetMemoryUsage();
     
-    // 轉換記憶體使用量為 KB
-    double memUsageKB = memUsage / 1024.0;
+    // 轉換記憶體使用量為 KB，使用更簡潔的格式
+    int memUsageKB = (int)(memUsage / 1024);
+    int cpuPercent = (int)(cpuUsage + 0.5);  // 四捨五入
     
     snprintf(buffer, bufferSize, 
-        "CPU: %.1f%% | Memory: %.1f KB", 
-        cpuUsage, memUsageKB);
+        "CPU: %d%% | Mem: %dKB", 
+        cpuPercent, memUsageKB);
 }

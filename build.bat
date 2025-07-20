@@ -213,23 +213,24 @@ if "%build_type%"=="debug" (
         "%~dp0src\GhostDesk.cpp" !RESOURCE_OBJ! ^
         -o "%~dp0dist\GhostDesk.exe" ^
         -mconsole -L"%~dp0dist" -lghostdesk_core ^
-        -lshell32 -lcomdlg32 -luser32
+        -lshell32 -lcomdlg32 -luser32 -lgdi32
 ) else if "%build_type%"=="release" (
     g++ -O2 -s -DNDEBUG -DWIN32_LEAN_AND_MEAN ^
         -I"%~dp0include" ^
         "%~dp0src\GhostDesk.cpp" !RESOURCE_OBJ! ^
         -o "%~dp0dist\GhostDesk.exe" ^
         -mwindows -L"%~dp0dist" -lghostdesk_core ^
-        -lshell32 -lcomdlg32 -luser32
+        -lshell32 -lcomdlg32 -luser32 -lgdi32
 ) else if "%build_type%"=="optimized" (
     g++ -O3 -s -flto -ffunction-sections -fdata-sections ^
-        -Wl,--gc-sections -DNDEBUG -DWIN32_LEAN_AND_MEAN ^
+        -Wl,--gc-sections,--strip-all -DNDEBUG -DWIN32_LEAN_AND_MEAN ^
         -fno-exceptions -fno-rtti -ffast-math -march=native ^
+        -fomit-frame-pointer -fmerge-all-constants ^
         -I"%~dp0include" ^
         "%~dp0src\GhostDesk.cpp" !RESOURCE_OBJ! ^
         -o "%~dp0dist\GhostDesk.exe" ^
         -mwindows -L"%~dp0dist" -lghostdesk_core ^
-        -lshell32 -lcomdlg32 -luser32
+        -lshell32 -lcomdlg32 -luser32 -lgdi32
 )
 
 if %ERRORLEVEL% NEQ 0 (

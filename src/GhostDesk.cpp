@@ -14,14 +14,20 @@ HBITMAP LoadJPEGFromFile(const char* filename);
 #define ID_SHOW_UI 1005
 #define ID_BACKGROUND_BROWSE 1006
 #define WM_TRAYICON (WM_USER + 1)
+#define WM_SHOW_EXISTING (WM_USER + 2)
 #define TIMER_ID 1
+
+// 單例模式相關
+#define GHOSTDESK_MUTEX_NAME "Global\\GhostDesk_SingleInstance_Mutex"
+#define GHOSTDESK_WINDOW_CLASS "GhostDeskApp"
 
 static HWND mainWindow;
 static bool mouseAtBottom = false; // Global mouse state
 // static HBITMAP hBackgroundBitmap = NULL; // 背景圖位圖 (未使用)
 // static HDC hBackgroundDC = NULL; // 背景圖 DC (未使用)
-static char customBackgroundPath[MAX_PATH] = ""; // 自訂背景路徑
+static char customBackgroundPath[260] = ""; // 自訂背景路徑 (減少緩衝區)
 static HWND hResourceLabel = NULL; // 系統資源顯示標籤
+static HANDLE hMutex = NULL; // 單例互斥鎖
 
 bool HasTaskbarPopup() {
     HWND notifyOverflow = FindWindowA("NotifyIconOverflowWindow", NULL);
@@ -159,7 +165,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 case ID_BACKGROUND_BROWSE: {
                     OPENFILENAMEA ofn;
                     memset(&ofn, 0, sizeof(ofn));
-                    char szFile[MAX_PATH] = "";
+                    char szFile[260] = "";  // 減少緩衝區大小
                     
                     ofn.lStructSize = sizeof(ofn);
                     ofn.hwndOwner = hwnd;
@@ -210,18 +216,29 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             if (wParam == TIMER_ID) {
                 CheckMousePosition();
                 
-                // 更新系統資源顯示
-                if (hResourceLabel) {
-                    char resourceInfo[256];
+                // 更新系統資源顯示 (減少頻率以節省CPU)
+                static int updateCounter = 0;
+                if (hResourceLabel && (++updateCounter % 4 == 0)) {  // 每秒更新一次而非每250ms
+                    char resourceInfo[64];  // 減少緩衝區大小
                     GetSystemResourceInfo(resourceInfo, sizeof(resourceInfo));
                     SetWindowTextA(hResourceLabel, resourceInfo);
                 }
             }
             break;
             
+        case WM_SHOW_EXISTING:
+            // 當檢測到重複啟動時，顯示現有視窗
+            ShowWindow(hwnd, SW_SHOW);
+            SetForegroundWindow(hwnd);
+            SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+            break;
+            
         case WM_TRAYICON:
             if (lParam == WM_LBUTTONDBLCLK) {
                 ShowWindow(hwnd, IsWindowVisible(hwnd) ? SW_HIDE : SW_SHOW);
+                if (IsWindowVisible(hwnd)) {
+                    SetForegroundWindow(hwnd);
+                }
             } else if (lParam == WM_RBUTTONUP) {
                 HMENU hMenu = CreatePopupMenu();
                 AppendMenuA(hMenu, MF_STRING, ID_TOGGLE, IsDesktopHidden() ? "Show(Ctrl+Shift+D)" : "Hide(Ctrl+Shift+D)");
@@ -249,6 +266,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             RemoveSystemTray();
             UnregisterGlobalHotkeys(hwnd);
             CleanupSystemMonitor();
+            if (hMutex) {
+                ReleaseMutex(hMutex);
+                CloseHandle(hMutex);
+            }
             PostQuitMessage(0);
             break;
     }
@@ -256,34 +277,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
-    if (!InitDesktopControl()) {
-        MessageBoxA(NULL, "Init failed", "Error", MB_OK | MB_ICONERROR);
-        return 1;
-    }
-    
-    WNDCLASSA wc = {};
-    wc.lpfnWndProc = WindowProc;
-    wc.hInstance = hInstance;
-    wc.lpszClassName = "GhostDeskApp";
-    wc.hbrBackground = NULL;
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(101));
-    RegisterClassA(&wc);
-    
-    mainWindow = CreateWindowA("GhostDeskApp", "GhostDesk Control Panel", 
-                            WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
-                            CW_USEDEFAULT, CW_USEDEFAULT, 640, 360,
-                            NULL, NULL, hInstance, NULL);
-    
-    // Multi-monitor support ready
-    
-    RegisterGlobalHotkeys(mainWindow);
-    CreateSystemTray(mainWindow);
-    SetTimer(mainWindow, TIMER_ID, 250, NULL); // Reduced frequency
-    
-    // Auto-hide desktop on startup
-    ToggleDesktop();
-    
     // 檢查命令列參數，決定是否顯示GUI
     bool showGUI = false;
     LPWSTR* szArglist;
@@ -298,9 +291,60 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     }
     LocalFree(szArglist);
     
+    // 創建互斥鎖檢查是否已有實例運行
+    hMutex = CreateMutexA(NULL, TRUE, GHOSTDESK_MUTEX_NAME);
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        // 程式已經在運行，尋找現有視窗
+        HWND existingWindow = FindWindowA(GHOSTDESK_WINDOW_CLASS, NULL);
+        if (existingWindow) {
+            // 如果用戶要求顯示GUI，則向現有實例發送訊息
+            if (showGUI) {
+                PostMessage(existingWindow, WM_SHOW_EXISTING, 0, 0);
+            }
+            // 關閉互斥鎖並退出
+            if (hMutex) {
+                CloseHandle(hMutex);
+            }
+            return 0;
+        }
+    }
+    
+    if (!InitDesktopControl()) {
+        MessageBoxA(NULL, "Init failed", "Error", MB_OK | MB_ICONERROR);
+        if (hMutex) {
+            ReleaseMutex(hMutex);
+            CloseHandle(hMutex);
+        }
+        return 1;
+    }
+    
+    WNDCLASSA wc = {};
+    wc.lpfnWndProc = WindowProc;
+    wc.hInstance = hInstance;
+    wc.lpszClassName = GHOSTDESK_WINDOW_CLASS;
+    wc.hbrBackground = NULL;
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(101));
+    RegisterClassA(&wc);
+    
+    mainWindow = CreateWindowA(GHOSTDESK_WINDOW_CLASS, "GhostDesk Control Panel", 
+                            WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
+                            CW_USEDEFAULT, CW_USEDEFAULT, 640, 360,
+                            NULL, NULL, hInstance, NULL);
+    
+    // Multi-monitor support ready
+    
+    RegisterGlobalHotkeys(mainWindow);
+    CreateSystemTray(mainWindow);
+    SetTimer(mainWindow, TIMER_ID, 250, NULL); // Reduced frequency
+    
+    // Auto-hide desktop on startup
+    ToggleDesktop();
+    
     // 只有在明確要求時才顯示GUI，否則在後台運行
     if (showGUI) {
         ShowWindow(mainWindow, SW_SHOW);
+        SetForegroundWindow(mainWindow);
     } else {
         ShowWindow(mainWindow, SW_HIDE);
     }

@@ -31,7 +31,7 @@ extern "C" {
     GHOSTDESK_API BOOL IsAutoStartEnabled();
     
     // Taskbar access
-    GHOSTDESK_API extern HWND taskbars[10];
+    GHOSTDESK_API extern HWND taskbars[4];  // 減少記憶體占用
     GHOSTDESK_API extern int taskbarCount;
     
     // System monitoring
