@@ -1,4 +1,6 @@
+#ifndef GHOSTDESK_EXPORTS
 #define GHOSTDESK_EXPORTS
+#endif
 #include "../../include/ghostdesk_api.h"
 
 #define HOTKEY_TOGGLE 1

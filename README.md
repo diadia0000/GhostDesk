@@ -29,7 +29,7 @@ GhostDesk/
 │   └── GhostDesk.cpp   # 主程式
 ├── include/            # API 頭文件
 ├── dist/               # 發布版本
-└── build_modular.bat   # 編譯腳本
+└── build.bat           # 統一編譯腳本
 ```
 
 ## 使用方式
@@ -39,28 +39,33 @@ GhostDesk/
 請使用支援 Win32 API 的 C++ 編譯器（如 MinGW）
 
 ```bash
-# 極致優化編譯（推薦）
-build_optimized.bat
+# 統一編譯系統（推薦）
+build.bat
 
-# 一般模組化編譯
-build_modular.bat
-
-# 手動優化編譯
-g++ -shared -O3 -s -flto -DNDEBUG -DWIN32_LEAN_AND_MEAN -fno-exceptions src\core\*.cpp src\ui\*.cpp src\service\*.cpp -o dist\ghostdesk_core.dll -lshell32
-g++ -O3 -s -flto -DNDEBUG -DWIN32_LEAN_AND_MEAN -fno-exceptions src\GhostDesk.cpp -o dist\GhostDesk.exe -mwindows -L.\dist -lghostdesk_core -lshell32
+# 可選擇的編譯模式：
+# [1] Debug Build     - 開發除錯版本
+# [2] Release Build   - 標準發布版本  
+# [3] Optimized Build - 極致優化版本
+# [4] All Builds      - 編譯所有版本
+# [5] Clean Only      - 清理編譯檔案
 ```
 
 ### 執行
 
 ```bash
-# 從 dist 目錄執行
+# 後台執行（預設模式）
 dist\GhostDesk.exe
+
+# 顯示GUI執行
+dist\GhostDesk.exe --show-gui
 ```
 
 程式會：
 - 自動隱藏桌面（首次啟動）
 - 在系統匣顯示圖示
 - 控制面板預設隱藏，雙擊系統匣圖示顯示
+- 即時顯示系統資源占用（CPU/記憶體）
+- 支援自訂GUI背景圖片
 
 ---
 
@@ -85,7 +90,7 @@ dist\GhostDesk.exe
 | 架構 | 模組化 DLL + 主程式 |
 | 語言 | C++17 |
 | 技術 | Win32 API + DLL 分離 + 極致優化 |
-| 效能 | < 1MB 記憶體，< 0.1% CPU |
+| 效能 | < 3MB 記憶體，< 0.1% CPU |
 
 ---
 
@@ -95,16 +100,12 @@ dist\GhostDesk.exe
 - [x] System Tray Icon 控制開關
 - [x] 開機自動啟動（Windows Registry）
 - [x] 模組化 DLL 架構
-- [ ] 自定快捷鍵 + 設定介面
-- [ ] Fade In/Out 動畫效果（用 `AnimateWindow()`）
-- [ ] 顯示該App對系統占用量
----
-
-## Side Project, Vibe On!
-
-這不是一個要寫成巨獸的專案，  
-而是一個讓我~~學習 C++ 與 Win32 API~~ 自嗨用的 Playground。  
-寫一點，學一點，優雅地把想法做出來
+- [x] 自定快捷鍵 + 設定介面
+- [x] Fade In/Out 動畫效果（用 `AnimateWindow()`）
+- [x] 顯示該App對系統占用量
+- [x] 安裝後在後台自動執行，除非叫出GUI
+- [x] 自訂義GUI背景
+- [x] 多螢幕優化
 
 ---
 

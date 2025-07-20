@@ -33,4 +33,11 @@ extern "C" {
     // Taskbar access
     GHOSTDESK_API extern HWND taskbars[10];
     GHOSTDESK_API extern int taskbarCount;
+    
+    // System monitoring
+    GHOSTDESK_API BOOL InitSystemMonitor();
+    GHOSTDESK_API void CleanupSystemMonitor();
+    GHOSTDESK_API double GetCPUUsage();
+    GHOSTDESK_API SIZE_T GetMemoryUsage();
+    GHOSTDESK_API void GetSystemResourceInfo(char* buffer, int bufferSize);
 }

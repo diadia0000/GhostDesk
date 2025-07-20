@@ -1,4 +1,6 @@
+#ifndef GHOSTDESK_EXPORTS
 #define GHOSTDESK_EXPORTS
+#endif
 #include "../../include/ghostdesk_api.h"
 #include <windows.h>
 
@@ -56,7 +58,8 @@ void InitFakeTaskbar() {
     static bool initialized = false;
     if (initialized) return;
     
-    WNDCLASSA wc = {0};
+    WNDCLASSA wc = {};
+    memset(&wc, 0, sizeof(wc));
     wc.lpfnWndProc = FakeTaskbarProc;
     wc.hInstance = GetModuleHandle(NULL);
     wc.lpszClassName = FAKE_TASKBAR_CLASS;
