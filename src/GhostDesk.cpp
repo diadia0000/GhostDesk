@@ -23,9 +23,9 @@ HBITMAP LoadJPEGFromFile(const char* filename);
 
 static HWND mainWindow;
 static bool mouseAtBottom = false; // Global mouse state
-// static HBITMAP hBackgroundBitmap = NULL; // 背景圖位圖 (未使用)
-// static HDC hBackgroundDC = NULL; // 背景圖 DC (未使用)
-static char customBackgroundPath[260] = ""; // 自訂背景路徑 (減少緩衝區)
+static HBITMAP hBackgroundBitmap = NULL; // 背景圖位圖快取
+static char customBackgroundPath[260] = ""; // 自訂背景路徑
+static char cachedBackgroundPath[260] = ""; // 快取的背景路徑
 static HWND hResourceLabel = NULL; // 系統資源顯示標籤
 static HANDLE hMutex = NULL; // 單例互斥鎖
 
@@ -40,28 +40,27 @@ int GetMouseMonitorIndex() {
     POINT cursor;
     GetCursorPos(&cursor);
     
-    // 檢查滑鼠是否在任何工作列內部
-    for (int i = 0; i < taskbarCount; i++) {
-        RECT taskbarRect;
-        if (GetWindowRect(taskbars[i], &taskbarRect)) {
-            if (PtInRect(&taskbarRect, cursor)) {
-                return i;
-            }
-        }
+    // 優化：先檢查是否在螢幕底部，減少不必要的計算
+    static RECT cachedScreenRect = {0};
+    static DWORD lastCacheTime = 0;
+    DWORD currentTime = GetTickCount();
+    
+    if (currentTime - lastCacheTime > 5000) { // 5秒快取
+        GetWindowRect(GetDesktopWindow(), &cachedScreenRect);
+        lastCacheTime = currentTime;
     }
     
-    // 如果不在工作列內部，檢查是否在螢幕底部觸發區域
-    HMONITOR hMonitor = MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST);
+    if (cursor.y < cachedScreenRect.bottom - 10) {
+        return -1; // 不在底部區域
+    }
     
+    // 檢查滑鼠是否在任何工作列內部或觸發區域
     for (int i = 0; i < taskbarCount; i++) {
         RECT taskbarRect;
         if (GetWindowRect(taskbars[i], &taskbarRect)) {
-            HMONITOR taskbarMonitor = MonitorFromRect(&taskbarRect, MONITOR_DEFAULTTONEAREST);
-            if (taskbarMonitor == hMonitor) {
-                MONITORINFO mi = { sizeof(MONITORINFO) };
-                if (GetMonitorInfo(hMonitor, &mi) && cursor.y >= mi.rcMonitor.bottom - 5) {
-                    return i;
-                }
+            if (PtInRect(&taskbarRect, cursor) || 
+                (cursor.y >= taskbarRect.top - 5 && cursor.x >= taskbarRect.left && cursor.x <= taskbarRect.right)) {
+                return i;
             }
         }
     }
@@ -100,17 +99,25 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             FillRect(hdc, &rect, hBrush);
             DeleteObject(hBrush);
             
-            // 加載背景圖 - 優先使用自訂背景
-            HBITMAP hBitmap = NULL;
-            if (strlen(customBackgroundPath) > 0) {
-                hBitmap = (HBITMAP)LoadImageA(NULL, customBackgroundPath, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+            // 背景圖快取機制
+            if (!hBackgroundBitmap || strcmp(customBackgroundPath, cachedBackgroundPath) != 0) {
+                if (hBackgroundBitmap) {
+                    DeleteObject(hBackgroundBitmap);
+                    hBackgroundBitmap = NULL;
+                }
+                
+                if (strlen(customBackgroundPath) > 0) {
+                    hBackgroundBitmap = (HBITMAP)LoadImageA(NULL, customBackgroundPath, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+                }
+                
+                if (!hBackgroundBitmap) {
+                    hBackgroundBitmap = (HBITMAP)LoadImage(GetModuleHandle(NULL), MAKEINTRESOURCE(IDB_BACKGROUND), 
+                                                         IMAGE_BITMAP, 0, 0, LR_DEFAULTCOLOR);
+                }
+                strcpy(cachedBackgroundPath, customBackgroundPath);
             }
             
-            // 如果自訂背景載入失敗，使用預設背景
-            if (!hBitmap) {
-                hBitmap = (HBITMAP)LoadImage(GetModuleHandle(NULL), MAKEINTRESOURCE(IDB_BACKGROUND), 
-                                           IMAGE_BITMAP, 0, 0, LR_DEFAULTCOLOR);
-            }
+            HBITMAP hBitmap = hBackgroundBitmap;
             
             if (hBitmap) {
                 HDC memDC = CreateCompatibleDC(hdc);
@@ -128,7 +135,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 
                 SelectObject(memDC, oldBitmap);
                 DeleteDC(memDC);
-                DeleteObject(hBitmap);
+                // 不再刪除hBitmap，因為它是快取的
             }
             
             EndPaint(hwnd, &ps);
@@ -218,7 +225,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 
                 // 更新系統資源顯示 (減少頻率以節省CPU)
                 static int updateCounter = 0;
-                if (hResourceLabel && (++updateCounter % 4 == 0)) {  // 每秒更新一次而非每250ms
+                if (hResourceLabel && (++updateCounter % 4 == 0)) {  // 每2秒更新一次
                     char resourceInfo[64];  // 減少緩衝區大小
                     GetSystemResourceInfo(resourceInfo, sizeof(resourceInfo));
                     SetWindowTextA(hResourceLabel, resourceInfo);
@@ -266,6 +273,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             RemoveSystemTray();
             UnregisterGlobalHotkeys(hwnd);
             CleanupSystemMonitor();
+            if (hBackgroundBitmap) {
+                DeleteObject(hBackgroundBitmap);
+                hBackgroundBitmap = NULL;
+            }
             if (hMutex) {
                 ReleaseMutex(hMutex);
                 CloseHandle(hMutex);
@@ -336,7 +347,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     
     RegisterGlobalHotkeys(mainWindow);
     CreateSystemTray(mainWindow);
-    SetTimer(mainWindow, TIMER_ID, 250, NULL); // Reduced frequency
+    SetTimer(mainWindow, TIMER_ID, 500, NULL); // Further reduced frequency
     
     // Auto-hide desktop on startup
     ToggleDesktop();

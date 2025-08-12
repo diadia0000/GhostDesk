@@ -264,10 +264,10 @@ echo   Output: dist\GhostDesk.exe
 echo   Library: dist\ghostdesk_core.dll
 echo.
 echo Release Features:
-echo   ✓ Standard optimization (O2)
-echo   ✓ Stripped binaries
-echo   ✓ Windows subsystem
-echo   ✓ Production ready
+echo   Standard optimization (O2)
+echo   Stripped binaries
+echo   Windows subsystem
+echo   Production ready
 echo.
 goto show_usage
 
@@ -280,17 +280,17 @@ echo   Output: dist\GhostDesk.exe
 echo   Library: dist\ghostdesk_core.dll
 echo.
 echo Optimizations Applied:
-echo   ✓ Maximum optimization (O3)
-echo   ✓ Link-time optimization (LTO)
-echo   ✓ Dead code elimination
-echo   ✓ Native CPU optimization
-echo   ✓ No exceptions/RTTI
-echo   ✓ Fast math operations
+echo   Maximum optimization (O3)
+echo   Link-time optimization (LTO)
+echo   Dead code elimination
+echo   Native CPU optimization
+echo   No exceptions/RTTI
+echo   Fast math operations
 echo.
 echo Performance Target:
-echo   • Memory Usage: < 1MB
-echo   • CPU Usage: < 0.1%
-echo   • Binary Size: Minimized
+echo   Memory Usage: < 1MB
+echo   CPU Usage: < 0.1%
+echo   Binary Size: Minimized
 echo.
 goto show_usage
 
@@ -313,15 +313,15 @@ echo   dist\GhostDesk.exe              (Background mode)
 echo   dist\GhostDesk.exe --show-gui   (With GUI)
 echo.
 echo Features Included:
-echo   ✓ Multi-monitor desktop hiding
-echo   ✓ Animated taskbar show/hide
-echo   ✓ System tray integration
-echo   ✓ Global hotkeys support
-echo   ✓ Auto-start functionality
-echo   ✓ System resource monitoring
-echo   ✓ Custom GUI backgrounds
-echo   ✓ Background execution mode
-echo   ✓ Modular DLL architecture
+echo   Multi-monitor desktop hiding
+echo   Animated taskbar show/hide
+echo   System tray integration
+echo   Global hotkeys support
+echo   Auto-start functionality
+echo   System resource monitoring
+echo   Custom GUI backgrounds
+echo   Background execution mode
+echo   Modular DLL architecture
 echo.
 exit /b 0
 

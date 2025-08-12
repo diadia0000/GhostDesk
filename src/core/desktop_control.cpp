@@ -98,12 +98,19 @@ void CleanupFakeTaskbar() {
     }
 }
 
-// 截取工作列畫面 (簡化版本以節省記憶體)
+// 截取工作列畫面 (優化版本)
 void CaptureTaskbarImage(int monitorIndex) {
     if (monitorIndex < 0 || monitorIndex >= taskbarCount) return;
     
-    // 簡化：不預先截取圖像，減少記憶體使用
-    // 只在需要時才創建臨時資源
+    // 清理舊資源
+    if (taskbarBitmaps[monitorIndex]) {
+        DeleteObject(taskbarBitmaps[monitorIndex]);
+        taskbarBitmaps[monitorIndex] = NULL;
+    }
+    if (taskbarDCs[monitorIndex]) {
+        DeleteDC(taskbarDCs[monitorIndex]);
+        taskbarDCs[monitorIndex] = NULL;
+    }
 }
 
 BOOL InitDesktopControl() {
@@ -196,11 +203,11 @@ void ShowTaskbarAnimated(int monitorIndex) {
         SetLayeredWindowAttributes(fakeTaskbars[monitorIndex], 0, 255, LWA_ALPHA);
         ShowWindow(fakeTaskbars[monitorIndex], SW_SHOW);
         
-        // 執行滑動動畫
-        for (int step = 0; step <= 10; step++) {
-            int y = rect.bottom - (height * step / 10);
+        // 執行滑動動畫 (優化版本)
+        for (int step = 0; step <= 8; step++) {
+            int y = rect.bottom - (height * step / 8);
             SetWindowPos(fakeTaskbars[monitorIndex], HWND_TOPMOST, rect.left, y, width, height, SWP_NOACTIVATE);
-            Sleep(15);
+            Sleep(12);
         }
         
         // 動畫結束後清理假工作列
@@ -259,11 +266,11 @@ void HideTaskbarAnimated(int monitorIndex) {
         // 隱藏真實工作列
         ShowWindow(hwnd, SW_HIDE);
         
-        // 執行滑動動畫
-        for (int step = 0; step <= 10; step++) {
-            int y = rect.top + (height * step / 10);
+        // 執行滑動動畫 (優化版本)
+        for (int step = 0; step <= 8; step++) {
+            int y = rect.top + (height * step / 8);
             SetWindowPos(fakeTaskbars[monitorIndex], HWND_TOPMOST, rect.left, y, width, height, SWP_NOACTIVATE);
-            Sleep(15);
+            Sleep(12);
         }
         
         // 清理假工作列

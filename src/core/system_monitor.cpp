@@ -9,6 +9,8 @@
 static PDH_HQUERY cpuQuery;
 static PDH_HCOUNTER cpuTotal;
 static bool monitorInitialized = false;
+static double lastCpuUsage = 0.0;
+static DWORD lastCpuTime = 0;
 
 BOOL InitSystemMonitor() {
     if (monitorInitialized) return TRUE;
@@ -31,16 +33,24 @@ void CleanupSystemMonitor() {
 double GetCPUUsage() {
     if (!monitorInitialized) return 0.0;
     
+    DWORD currentTime = GetTickCount();
+    if (currentTime - lastCpuTime < 1000) {
+        return lastCpuUsage; // 使用快取值
+    }
+    
     PDH_FMT_COUNTERVALUE counterVal;
-    PdhCollectQueryData(cpuQuery);
-    PdhGetFormattedCounterValue(cpuTotal, PDH_FMT_DOUBLE, NULL, &counterVal);
-    return counterVal.doubleValue;
+    if (PdhCollectQueryData(cpuQuery) == ERROR_SUCCESS &&
+        PdhGetFormattedCounterValue(cpuTotal, PDH_FMT_DOUBLE, NULL, &counterVal) == ERROR_SUCCESS) {
+        lastCpuUsage = counterVal.doubleValue;
+        lastCpuTime = currentTime;
+    }
+    return lastCpuUsage;
 }
 
 SIZE_T GetMemoryUsage() {
-    PROCESS_MEMORY_COUNTERS pmc;
-    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
-        return pmc.WorkingSetSize;
+    PROCESS_MEMORY_COUNTERS_EX pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
+        return pmc.PrivateUsage; // 使用私有記憶體，更精確
     }
     return 0;
 }
